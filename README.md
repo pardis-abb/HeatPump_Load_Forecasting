@@ -100,3 +100,6 @@ This tool can be used to:
 *  Improve forecasting accuracy using measured heat pump performance data.
 *  Add automated data processing and visualization tools.
 
+## 🎥 How to Use the Excel Tool
+
+![Excel Demo](Howtousetheexcel-ezgif.com-video-to-gif-converter%20(1).gif)
