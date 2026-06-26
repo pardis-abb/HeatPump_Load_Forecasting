@@ -44,28 +44,6 @@ This directory contains all datasets collected for the **Heat Pump Electricity D
 
 ---
 
-### Building Data
-
-**Purpose**
-- Residential building energy reports and heating load information.
-
-**Application**
-- Estimate annual and monthly heating demand
-- Validate modelling methodologies
-- Compare model predictions with case studies
-
----
-
-### Market Data
-
-**Purpose**
-- Heat pump adoption statistics and electrification reports.
-
-**Application**
-- Develop future adoption scenarios
-- Estimate additional electrical demand resulting from increased heat pump adoption
-
----
 
 ### Reference Reports
 
