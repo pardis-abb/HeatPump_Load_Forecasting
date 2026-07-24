@@ -27,21 +27,14 @@ def calculate_lorenz_cop(
     outside_temperature_c: pd.Series,
     indoor_temperature_c: float,
     approach_temperature_c: float,
-    refrigeration_efficiency: float,
     minimum_cop: float = 1.0,
-    maximum_cop: float = 6.0,
+    maximum_cop: float = 100.0,
 ) -> pd.Series:
     """
-    Calculate actual heating COP using the Lorenz formulation.
+    Calculate the reversible Lorenz COP.
 
-    Temperatures are converted to Kelvin.
-
-    COP_reversible =
-        (T_indoor - delta_T / 2)
-        /
-        (T_indoor - T_outdoor + delta_T)
-
-    COP_actual = eta_R × COP_reversible
+    This function does not apply refrigeration efficiency.
+    Efficiency is applied later when calculating electrical load.
     """
 
     indoor_temperature_k = indoor_temperature_c + 273.15
@@ -60,29 +53,21 @@ def calculate_lorenz_cop(
 
     reversible_cop = numerator / denominator
 
-    actual_cop = (
-        refrigeration_efficiency
-        * reversible_cop
-    )
-
-    return actual_cop.clip(
+    return reversible_cop.clip(
         lower=minimum_cop,
         upper=maximum_cop,
     )
 
-
 def calculate_carnot_cop(
     outside_temperature_c: pd.Series,
     indoor_temperature_c: float,
-    refrigeration_efficiency: float,
     minimum_cop: float = 1.0,
-    maximum_cop: float = 6.0,
+    maximum_cop: float = 100.0,
 ) -> pd.Series:
     """
-    Calculate actual heating COP using the Carnot formulation.
+    Calculate the reversible Carnot heating COP.
 
-    COP_reversible = T_indoor / (T_indoor - T_outdoor)
-    COP_actual = eta_R × COP_reversible
+    This function does not apply refrigeration efficiency.
     """
 
     indoor_temperature_k = indoor_temperature_c + 273.15
@@ -98,30 +83,36 @@ def calculate_carnot_cop(
         / denominator
     )
 
+    return reversible_cop.clip(
+        lower=minimum_cop,
+        upper=maximum_cop,
+    )
+
+def calculate_electrical_load(
+    thermal_load_kw: pd.Series,
+    reversible_cop: pd.Series,
+    refrigeration_efficiency: float,
+) -> pd.Series:
+    """
+    Calculate electrical heat-pump demand using Equation 11:
+
+    Load = Q / (eta_R × COP_reversible)
+    """
+
     actual_cop = (
         refrigeration_efficiency
         * reversible_cop
     )
 
-    return actual_cop.clip(
-        lower=minimum_cop,
-        upper=maximum_cop,
+    safe_actual_cop = actual_cop.replace(
+        0,
+        np.nan,
     )
 
-
-def calculate_electrical_load(
-    thermal_load_kw: pd.Series,
-    cop: pd.Series,
-) -> pd.Series:
-    """
-    Calculate heat-pump electrical demand.
-
-    P_electric = Q_thermal / COP
-    """
-
-    safe_cop = cop.replace(0, np.nan)
-
-    electrical_load = thermal_load_kw / safe_cop
+    electrical_load = (
+        thermal_load_kw
+        / safe_actual_cop
+    )
 
     return electrical_load.fillna(0.0)
 
@@ -207,34 +198,48 @@ def calculate_all_formulations(
         )
     )
 
-    results["COP_Lorenz"] = calculate_lorenz_cop(
-        results["outside_temperature_C"],
-        indoor_temperature_c,
-        approach_temperature_c,
-        refrigeration_efficiency,
-        minimum_cop,
-        maximum_cop,
+    results["COP_Lorenz_Reversible"] = (
+        calculate_lorenz_cop(
+            results["outside_temperature_C"],
+            indoor_temperature_c,
+            approach_temperature_c,
+            minimum_cop,
+            maximum_cop,
+        )
     )
 
-    results["COP_Carnot"] = calculate_carnot_cop(
-        results["outside_temperature_C"],
-        indoor_temperature_c,
-        refrigeration_efficiency,
-        minimum_cop,
-        maximum_cop,
+    results["COP_Lorenz_Actual"] = (
+        refrigeration_efficiency
+        * results["COP_Lorenz_Reversible"]
+    )
+
+    results["COP_Carnot_Reversible"] = (
+        calculate_carnot_cop(
+            results["outside_temperature_C"],
+            indoor_temperature_c,
+            minimum_cop,
+            maximum_cop,
+        )
+    )
+
+    results["COP_Carnot_Actual"] = (
+        refrigeration_efficiency
+        * results["COP_Carnot_Reversible"]
     )
 
     results["HP_load_Lorenz_kW_per_unit"] = (
         calculate_electrical_load(
             results["thermal_heating_load_kW"],
-            results["COP_Lorenz"],
+            results["COP_Lorenz_Reversible"],
+            refrigeration_efficiency,
         )
     )
 
     results["HP_load_Carnot_kW_per_unit"] = (
         calculate_electrical_load(
             results["thermal_heating_load_kW"],
-            results["COP_Carnot"],
+            results["COP_Carnot_Reversible"],
+            refrigeration_efficiency,
         )
     )
 
