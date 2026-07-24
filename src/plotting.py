@@ -78,7 +78,7 @@ def plot_aggregate_heat_pump_load(
 
     plt.xlabel("Datetime")
     plt.ylabel("Total heat-pump load (MW)")
-    plt.title("Estimated Aggregate Calgary Heat-Pump Load")
+    plt.title("Estimated Calgary Heat-Pump Electrical Load")
     plt.legend()
     plt.tight_layout()
 
